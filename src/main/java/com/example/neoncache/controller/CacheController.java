@@ -1,6 +1,5 @@
 package com.example.neoncache.controller;
 
-import com.example.neoncache.dto.RequestDto;
 import com.example.neoncache.service.CacheService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,7 +10,7 @@ public class CacheController {
 
 	private final CacheService cacheService;
 
-	public CacheController(CacheService cacheService) {
+	public CacheController(CacheService cacheService) {	
 		this.cacheService = cacheService;
 	}
 
@@ -21,7 +20,7 @@ public class CacheController {
 	 * clears L1 and stores current ddMMyyHHmmSS.
 	 */
 	@PostMapping("/get")
-	public String getValue(@RequestBody RequestDto request) {
+	public String getValue(@RequestBody String request) {
 		return ResponseEntity.ok(cacheService.getValue(request)).getBody().value();
 	}
 
