@@ -35,15 +35,15 @@ public class CacheService {
         this.requestLogRepository = requestLogRepository;
     }
 
-    public CacheResponse getValue(RequestDto request) {
+    public CacheResponse getValue(String request) {
 
-        if (request == null || request.value() == null || request.value().isBlank()) {
+        if (request == null) {
             throw new IllegalArgumentException("request.value must not be empty");
         }
 
         // STEP 1: Store in DB FIRST.
         RequestLog requestLog = new RequestLog(
-                request.value(),
+        		request,
                 LocalDateTime.now()
         );
         requestLogRepository.save(requestLog);
