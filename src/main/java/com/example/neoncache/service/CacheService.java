@@ -1,22 +1,17 @@
 package com.example.neoncache.service;
 
 import com.example.neoncache.dto.CacheResponse;
-import com.example.neoncache.dto.RequestDto;
 import com.example.neoncache.entity.RequestLog;
 import com.example.neoncache.repository.RequestLogRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class CacheService {
 
     private static final String CACHE_KEY = "12345";
-
-    private static final DateTimeFormatter FORMATTER =
-            DateTimeFormatter.ofPattern("ddMMyyHHmmss");
 
     /*
      * L1 cache:
@@ -67,16 +62,22 @@ public class CacheService {
      */
     public synchronized CacheResponse send() {
 
-        // Clear L1 cache.
+        // Clear L1 cache
         L1_CACHE.clear();
 
-        // Current value.
-        String currentValue = LocalDateTime.now().format(FORMATTER);
+        // Get total count from DB
+        long totalDbCount = requestLogRepository.count();
 
-        // Store key 12345 with current value.
+        // Store DB count in L1 cache
+        String currentValue = String.valueOf(totalDbCount);
+
         L1_CACHE.put(CACHE_KEY, currentValue);
 
-        return new CacheResponse(CACHE_KEY, currentValue, "SEND");
+        return new CacheResponse(
+                CACHE_KEY,
+                currentValue,
+                "SEND"
+        );
     }
 
     // Useful for testing/debugging.
