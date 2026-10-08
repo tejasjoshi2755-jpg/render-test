@@ -84,4 +84,9 @@ public class CacheService {
     public static String getL1Value() {
         return L1_CACHE.get(CACHE_KEY);
     }
+
+    public String clearCache() {
+    	L1_CACHE.clear();
+    	return "Cache Clear";
+    }
 }
