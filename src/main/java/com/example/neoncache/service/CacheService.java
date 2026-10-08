@@ -3,6 +3,9 @@ package com.example.neoncache.service;
 import com.example.neoncache.dto.CacheResponse;
 import com.example.neoncache.entity.RequestLog;
 import com.example.neoncache.repository.RequestLogRepository;
+
+import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -30,11 +33,13 @@ public class CacheService {
         this.requestLogRepository = requestLogRepository;
     }
 
-    public CacheResponse getValue(String request) {
+    public CacheResponse getValue(String request, HttpServletRequest req) {
 
         if (request == null) {
             throw new IllegalArgumentException("request.value must not be empty");
         }
+        
+        String ip = req.getRemoteAddr();
 
         // STEP 1: Store in DB FIRST.
         RequestLog requestLog = new RequestLog(
@@ -47,11 +52,11 @@ public class CacheService {
         String cachedValue = L1_CACHE.get(CACHE_KEY);
 
         if (cachedValue != null && !cachedValue.isBlank()) {
-            return new CacheResponse(CACHE_KEY, cachedValue, "L1_CACHE");
+            return new CacheResponse(CACHE_KEY, cachedValue+"-"+ip, "L1_CACHE");
         }
 
         // STEP 3: L1 is empty -> call send() logic.
-        return send();
+        return send(ip);
     }
 
     /*
@@ -60,7 +65,7 @@ public class CacheService {
      * Clears L1 and stores the current timestamp using:
      * ddMMyyHHmmss
      */
-    public synchronized CacheResponse send() {
+    public synchronized CacheResponse send(String ip) {
 
         // Clear L1 cache
         L1_CACHE.clear();
@@ -75,18 +80,18 @@ public class CacheService {
 
         return new CacheResponse(
                 CACHE_KEY,
-                currentValue,
+                currentValue+"-"+ip,
                 "SEND"
         );
+    }
+    
+    public String clearCache() {
+    	L1_CACHE.clear();
+    	return "Cache Clear";
     }
 
     // Useful for testing/debugging.
     public static String getL1Value() {
         return L1_CACHE.get(CACHE_KEY);
-    }
-
-    public String clearCache() {
-    	L1_CACHE.clear();
-    	return "Cache Clear";
     }
 }
