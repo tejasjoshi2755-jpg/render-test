@@ -30,6 +30,6 @@ public class CacheController {
 	 */
 	@PostMapping("/send")
 	public String send() {
-		return ResponseEntity.ok(cacheService.send()).getBody().value();
+		return cacheService.clearCache();
 	}
 }
