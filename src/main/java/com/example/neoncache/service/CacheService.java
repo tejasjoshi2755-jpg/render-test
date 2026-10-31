@@ -33,12 +33,22 @@ public class CacheService {
         this.requestLogRepository = requestLogRepository;
     }
 
+    private CacheResponse dbDown() {
+        log.warn("Database unavailable. Returning DB Down response.");
+
+        return new CacheResponse(
+                CACHE_KEY,
+                "DB Down",
+                "DB_DOWN"
+        );
+    }
+
     public CacheResponse getValue(
             String request,
             HttpServletRequest req) {
 
         if (request == null || request.isBlank()) {
-            log.warn("Cache request rejected: request.value is empty");
+            log.warn("Invalid cache request: empty value");
             throw new IllegalArgumentException(
                     "request.value must not be empty");
         }
@@ -47,7 +57,7 @@ public class CacheService {
 
         log.info("Cache request received. Client IP: {}", ip);
 
-        // STEP 1: Save request in database first.
+        // STEP 1: Save request in database
         try {
             RequestLog requestLog = new RequestLog(
                     request,
@@ -56,30 +66,21 @@ public class CacheService {
 
             requestLogRepository.save(requestLog);
 
-            log.info("Database INSERT successful for RequestLog");
+            log.info("Database INSERT successful");
 
         } catch (DataAccessException e) {
-            log.error(
-                    "DATABASE INSERT FAILED: Could not save RequestLog. " +
-                    "Check Neon availability, JDBC connection, schema, " +
-                    "constraints, and SQL errors.",
-                    e
-            );
-            throw e;
 
-        } catch (RuntimeException e) {
-            log.error(
-                    "UNEXPECTED ERROR during RequestLog save operation",
-                    e
-            );
-            throw e;
+            log.error("DATABASE INSERT FAILED: {}", e.getMessage(), e);
+
+            return dbDown();
         }
 
-        // STEP 2: Check L1 cache.
+        // STEP 2: Check L1 cache
         String cachedValue = L1_CACHE.get(CACHE_KEY);
 
         if (cachedValue != null && !cachedValue.isBlank()) {
-            log.info("L1 CACHE HIT. Returning cached value.");
+
+            log.info("L1 CACHE HIT");
 
             return new CacheResponse(
                     CACHE_KEY,
@@ -88,56 +89,36 @@ public class CacheService {
             );
         }
 
-        log.info("L1 CACHE MISS. Fetching database count.");
+        log.info("L1 CACHE MISS");
 
-        // STEP 3: Cache miss -> execute SEND logic.
+        // STEP 3: Fetch database count
         return send(ip);
     }
 
-    /*
-     * Clears L1, counts database records, and caches the count.
-     */
     public synchronized CacheResponse send(String ip) {
 
         log.info("SEND operation started");
 
-        L1_CACHE.clear();
-        log.debug("L1 cache cleared");
-
         final long totalDbCount;
 
         try {
+
             totalDbCount = requestLogRepository.count();
 
-            log.info(
-                    "DATABASE COUNT successful. Total RequestLog records: {}",
-                    totalDbCount
-            );
+            log.info("DATABASE COUNT successful: {}", totalDbCount);
 
         } catch (DataAccessException e) {
-            log.error(
-                    "DATABASE COUNT FAILED: Could not execute " +
-                    "requestLogRepository.count(). Check Neon compute " +
-                    "allowance, branch status, database connectivity, " +
-                    "credentials, and SQL errors.",
-                    e
-            );
-            throw e;
 
-        } catch (RuntimeException e) {
-            log.error(
-                    "UNEXPECTED ERROR during database COUNT operation",
-                    e
-            );
-            throw e;
+            log.error("DATABASE COUNT FAILED: {}", e.getMessage(), e);
+
+            return dbDown();
         }
 
         String currentValue = String.valueOf(totalDbCount);
 
         L1_CACHE.put(CACHE_KEY, currentValue);
 
-        log.info("L1 cache updated successfully. Key: {}", CACHE_KEY);
-        log.info("SEND operation completed successfully");
+        log.info("L1 cache updated: {}", currentValue);
 
         return new CacheResponse(
                 CACHE_KEY,
@@ -147,11 +128,10 @@ public class CacheService {
     }
 
     public String clearCache() {
+
         log.info("Manual L1 cache clear requested");
 
         L1_CACHE.clear();
-
-        log.info("L1 cache cleared successfully");
 
         return "Cache Clear";
     }
