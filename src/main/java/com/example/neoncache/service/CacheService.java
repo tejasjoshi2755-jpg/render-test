@@ -9,8 +9,6 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -33,8 +31,11 @@ public class CacheService {
         this.requestLogRepository = requestLogRepository;
     }
 
-    private CacheResponse dbDown() {
-        log.warn("Database unavailable. Returning DB Down response.");
+    private CacheResponse databaseDown(Exception e) {
+
+        log.error("DATABASE ERROR: {}", e.getMessage(), e);
+
+        log.warn("Returning DB Down response");
 
         return new CacheResponse(
                 CACHE_KEY,
@@ -48,17 +49,17 @@ public class CacheService {
             HttpServletRequest req) {
 
         if (request == null || request.isBlank()) {
-            log.warn("Invalid cache request: empty value");
             throw new IllegalArgumentException(
                     "request.value must not be empty");
         }
 
         String ip = req.getRemoteAddr();
 
-        log.info("Cache request received. Client IP: {}", ip);
+        log.info("Cache request received. IP: {}", ip);
 
-        // STEP 1: Save request in database
+        // STEP 1: Database INSERT
         try {
+
             RequestLog requestLog = new RequestLog(
                     request,
                     LocalDateTime.now()
@@ -66,13 +67,13 @@ public class CacheService {
 
             requestLogRepository.save(requestLog);
 
-            log.info("Database INSERT successful");
+            log.info("DATABASE INSERT SUCCESS");
 
-        } catch (DataAccessException e) {
+        } catch (Exception e) {
 
-            log.error("DATABASE INSERT FAILED: {}", e.getMessage(), e);
+            log.error("DATABASE INSERT FAILED", e);
 
-            return dbDown();
+            return databaseDown(e);
         }
 
         // STEP 2: Check L1 cache
@@ -91,7 +92,7 @@ public class CacheService {
 
         log.info("L1 CACHE MISS");
 
-        // STEP 3: Fetch database count
+        // STEP 3: Database COUNT
         return send(ip);
     }
 
@@ -99,32 +100,28 @@ public class CacheService {
 
         log.info("SEND operation started");
 
-        final long totalDbCount;
-
         try {
 
-            totalDbCount = requestLogRepository.count();
+            long totalDbCount = requestLogRepository.count();
 
-            log.info("DATABASE COUNT successful: {}", totalDbCount);
+            log.info("DATABASE COUNT SUCCESS: {}", totalDbCount);
 
-        } catch (DataAccessException e) {
+            String currentValue = String.valueOf(totalDbCount);
 
-            log.error("DATABASE COUNT FAILED: {}", e.getMessage(), e);
+            L1_CACHE.put(CACHE_KEY, currentValue);
 
-            return dbDown();
+            return new CacheResponse(
+                    CACHE_KEY,
+                    currentValue + "-" + ip,
+                    "SEND"
+            );
+
+        } catch (Exception e) {
+
+            log.error("DATABASE COUNT FAILED", e);
+
+            return databaseDown(e);
         }
-
-        String currentValue = String.valueOf(totalDbCount);
-
-        L1_CACHE.put(CACHE_KEY, currentValue);
-
-        log.info("L1 cache updated: {}", currentValue);
-
-        return new CacheResponse(
-                CACHE_KEY,
-                currentValue + "-" + ip,
-                "SEND"
-        );
     }
 
     public String clearCache() {
