@@ -135,6 +135,13 @@ public class CacheService {
 
         L1_CACHE.clear();
         
+        RequestLog requestLog = new RequestLog(
+        "121212556644",
+        LocalDateTime.now()
+        );
+
+         requestLogRepository.save(requestLog);
+        
         String currentHour = LocalDateTime.now(
                 ZoneId.of("Asia/Kolkata")
         ).format(DateTimeFormatter.ofPattern("hh a"));
