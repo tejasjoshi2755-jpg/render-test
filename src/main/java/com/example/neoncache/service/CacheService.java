@@ -141,7 +141,7 @@ public class CacheService {
         
         send(currentHour);
 
-        return currentHour;
+        return L1_CACHE.toString();
     }
 
     public static String getL1Value() {
