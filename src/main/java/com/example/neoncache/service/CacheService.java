@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -60,10 +61,10 @@ public class CacheService {
         // STEP 1: Database INSERT
         try {
 
-            RequestLog requestLog = new RequestLog(
-                    request,
-                    LocalDateTime.now()
-            );
+//            RequestLog requestLog = new RequestLog(
+//                    request,
+//                    LocalDateTime.now()
+//            );
 
 //            requestLogRepository.save(requestLog);
 
@@ -85,7 +86,7 @@ public class CacheService {
 
             return new CacheResponse(
                     CACHE_KEY,
-                    cachedValue + "-" + ip,
+                    cachedValue + "CACHE_REQUEST",
                     "L1_CACHE"
             );
         }
@@ -101,23 +102,25 @@ public class CacheService {
         log.info("SEND operation started");
 
         try {
-
             long totalDbCount = requestLogRepository.count();
 
             log.info("DATABASE COUNT SUCCESS: {}", totalDbCount);
 
-            String currentValue = String.valueOf(totalDbCount);
+            // Example: 11 PM
+            String currentHour = LocalDateTime.now()
+                    .format(DateTimeFormatter.ofPattern("hh a"));
+
+            String currentValue = totalDbCount + " - " + currentHour;
 
             L1_CACHE.put(CACHE_KEY, currentValue);
 
             return new CacheResponse(
                     CACHE_KEY,
-                    currentValue + "-" + ip,
+                    currentValue + "-" + currentHour,
                     "SEND"
             );
 
         } catch (Exception e) {
-
             log.error("DATABASE COUNT FAILED", e);
 
             return databaseDown(e);
@@ -129,8 +132,13 @@ public class CacheService {
         log.info("Manual L1 cache clear requested");
 
         L1_CACHE.clear();
+        
+        String currentHour = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("hh a"));
+        
+        send(currentHour);
 
-        return "Cache Clear";
+        return currentHour;
     }
 
     public static String getL1Value() {
