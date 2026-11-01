@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -107,8 +108,9 @@ public class CacheService {
             log.info("DATABASE COUNT SUCCESS: {}", totalDbCount);
 
             // Example: 11 PM
-            String currentHour = LocalDateTime.now()
-                    .format(DateTimeFormatter.ofPattern("hh a"));
+            String currentHour = LocalDateTime.now(
+                    ZoneId.of("Asia/Kolkata")
+            ).format(DateTimeFormatter.ofPattern("hh a"));
 
             String currentValue = totalDbCount + " - " + currentHour;
 
@@ -133,8 +135,9 @@ public class CacheService {
 
         L1_CACHE.clear();
         
-        String currentHour = LocalDateTime.now()
-                .format(DateTimeFormatter.ofPattern("hh a"));
+        String currentHour = LocalDateTime.now(
+                ZoneId.of("Asia/Kolkata")
+        ).format(DateTimeFormatter.ofPattern("hh a"));
         
         send(currentHour);
 
